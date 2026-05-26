@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>请求监听工具 v3</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header" style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <h1>请求监听工具</h1>
+        <p>输入网址 → 开始监听 → 自动捕获所有 API 请求</p>
+      </div>
+      <span style="color:rgba(255,255,255,0.6);font-size:13px;">可配置化 · 通用监听</span>
+    </header>
+
+    <div class="step-panel full-width" style="margin-bottom:20px;">
+      <div class="panel-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div id="browserStatus" class="status-indicator offline">
+          <span class="dot"></span><span>未开始监听</span>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <span style="color:var(--gray-500);font-size:13px;">已捕获: <strong id="captureCount">0</strong> 个请求</span>
+          <span style="color:var(--gray-500);font-size:13px;">|</span>
+          <span style="color:var(--gray-500);font-size:13px;">服务器: <code id="serverAddress">http://localhost:3000</code></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <!-- 左列 -->
+      <div>
+        <div class="step-panel">
+          <div class="panel-header"><span class="step-number">1</span><h2>目标网址</h2></div>
+          <div class="panel-body">
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+              <input type="url" id="targetUrl" class="url-input"
+                placeholder="输入要监听的网址，例如 https://example.com"
+                value="https://example.com">
+              <button id="btnOpenBrowser" class="btn btn-primary btn-lg" onclick="startListen()" style="flex-shrink:0;">
+                🚀 开始监听
+              </button>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+              <button id="btnCloseBrowser" class="btn btn-danger" onclick="closeBrowser()" disabled>⏹ 停止监听</button>
+            </div>
+
+            <div id="browserHint" style="display:none;padding:12px;background:#e8f5e9;border-radius:var(--radius);margin-top:12px;">
+              <strong>✅ 浏览器已打开，正在监听！</strong>
+              <ol style="margin:8px 0 0 16px;line-height:1.8;">
+                <li>在打开的 <strong>Chrome窗口</strong> 中操作目标网站</li>
+                <li>所有 XHR/Fetch 请求会自动显示在右侧列表中</li>
+                <li>点击任意请求 → 查看详情 → 可「回放」重新请求</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右列: 捕获列表 -->
+      <div>
+        <div class="step-panel" style="min: height 209px;max-height:750px;display:flex;flex-direction:column;">
+          <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0;flex-wrap:wrap;gap:6px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span class="step-number">2</span>
+              <h2>已捕获的请求</h2>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-sm btn-outline" onclick="refreshCapturedList()">🔄 刷新</button>
+              <button class="btn btn-sm btn-danger" onclick="clearCaptured()">🗑️ 清空</button>
+            </div>
+          </div>
+          <div class="panel-body" style="padding:8px 12px 0;flex-shrink:0;">
+            <div style="display:flex;gap:8px;margin-bottom:4px;">
+              <select id="filterMethod" onchange="applyFilter()" style="padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:12px;background:white;">
+                <option value="">全部方法</option>
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="DELETE">DELETE</option>
+                <option value="PATCH">PATCH</option>
+              </select>
+              <input type="text" id="filterKeyword" placeholder="搜索URL关键字..." oninput="applyFilter()"
+                style="flex:1;padding:4px 10px;border:1px solid var(--gray-300);border-radius:6px;font-size:12px;min-width:60px;">
+            </div>
+          </div>
+          <div class="panel-body" style="flex:1;overflow-y:auto;overflow-x:hidden;padding:12px;">
+            <div id="capturedList">
+              <div style="text-align:center;padding:40px 16px;color:var(--gray-400);">
+                <div style="font-size:40px;margin-bottom:12px;">📡</div>
+                <p>暂无捕获记录</p>
+                <p style="font-size:12px;margin-top:4px;">输入网址 → 开始监听 → 操作网站自动捕获</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 详情与回放 -->
+    <div class="step-panel full-width" style="margin-top:20px;">
+      <div class="panel-header">
+        <span class="step-number">3</span>
+        <div><h2 id="detailTitle" style="display:inline;">请求详情 &amp; 回放</h2><span id="detailBadge" class="status-badge pending" style="margin-left:8px;">等待选择</span></div>
+      </div>
+      <div class="panel-body">
+        <div id="detailToolbar" style="display:none;margin-bottom:12px;gap:8px;flex-wrap:wrap;">
+          <button id="btnReplay" class="btn btn-success" onclick="replayCaptured()">▶️ 回放此请求</button>
+          <button class="btn btn-sm btn-outline" onclick="copyDetailUrl()">📋 复制URL</button>
+          <button class="btn btn-sm btn-outline" onclick="copyDetailResponse()">📋 复制响应</button>
+          <button class="btn btn-sm btn-outline" onclick="exportDetailJson()">💾 导出JSON</button>
+        </div>
+
+        <div id="detailRequest" style="display:none;margin-bottom:12px;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <tr><td style="width:80px;padding:4px 8px;color:var(--gray-500);font-weight:500;">方法</td><td id="detailMethod" style="padding:4px 8px;"></td></tr>
+            <tr><td style="padding:4px 8px;color:var(--gray-500);font-weight:500;">URL</td><td id="detailUrl" style="padding:4px 8px;word-break:break-all;font-family:monospace;font-size:12px;"></td></tr>
+            <tr><td style="padding:4px 8px;color:var(--gray-500);font-weight:500;">状态</td><td id="detailStatus" style="padding:4px 8px;"></td></tr>
+            <tr><td style="padding:4px 8px;color:var(--gray-500);font-weight:500;">耗时</td><td id="detailDuration" style="padding:4px 8px;"></td></tr>
+          </table>
+        </div>
+
+        <details id="detailHeaders" style="display:none;margin-bottom:8px;">
+          <summary style="cursor:pointer;font-size:13px;color:var(--primary);display:flex;align-items:center;gap:8px;">
+            <span>📋 请求 Headers</span>
+            <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();copyDetailHeaders()" style="font-size:11px;padding:2px 8px;">复制</button>
+          </summary>
+          <pre id="detailHeadersContent" class="result-viewer" style="margin-top:8px;max-height:200px;"></pre>
+        </details>
+
+        <div id="detailResponse" style="display:none;">
+          <div style="font-size:13px;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:8px;">
+            <span>响应数据:</span>
+            <button class="btn btn-sm btn-outline" onclick="copyDetailResponse()" style="font-size:11px;padding:2px 8px;">复制</button>
+          </div>
+          <pre id="detailResponseContent" class="result-viewer" style="max-height:500px;"></pre>
+        </div>
+
+        <div id="detailEmpty" style="text-align:center;padding:40px;color:var(--gray-400);">
+          <div style="font-size:36px;margin-bottom:8px;">👆</div>
+          <p>从上方列表点击一个请求查看详情</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 规则配置 -->
+    <div class="step-panel full-width" style="margin-top:20px;">
+      <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="step-number">⚙</span>
+          <h2>监听规则</h2>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm btn-primary" onclick="showAddRuleModal()">➕ 添加规则</button>
+          <button class="btn btn-sm btn-outline" onclick="resetRules()">↩ 重置</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <p style="font-size:12px;color:var(--gray-500);margin-bottom:10px;">
+          添加自定义规则来匹配需要监听的请求。支持域名、精确URL、正则表达式、关键字包含四种模式。<br>
+          <strong>提示：</strong>点击「开始监听」时会自动为当前网址添加域名规则。
+        </p>
+        <div id="ruleList" style="max-height:300px;overflow-y:auto;">
+          <div style="text-align:center;padding:20px;color:var(--gray-400);">暂无规则</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 调试日志 -->
+    <div class="step-panel full-width" style="margin-top:20px;">
+      <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:10px;"><span class="step-number">📋</span><h2>调试日志</h2></div>
+        <button class="btn btn-sm btn-outline" onclick="refreshDebugLogs()">🔄 刷新</button>
+      </div>
+      <div class="panel-body" style="padding:10px;">
+        <pre id="debugLogContent" style="background:#1e1e1e;color:#d4d4d4;padding:12px;border-radius:var(--radius);font-size:11px;line-height:1.6;max-height:200px;overflow:auto;font-family:Consolas,monospace;white-space:pre-wrap;word-break:break-all;">等待日志...</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+  <script src="/js/app.js"></script>
+</body>
+</html>
