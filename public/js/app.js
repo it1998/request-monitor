@@ -201,7 +201,7 @@ async function replayCaptured() {
   try {
     const res = await fetch(`/api/captured/replay/${STATE.selectedApiId}`, { method: 'POST' });
     const result = await res.json(); STATE.replayResult = result;
-    box.innerHTML = `<div class="replay-header" style="display:flex;justify-content:space-between;align-items:center;"><span>📊 回放结果</span><span style="font-size:12px;color:${result.success?'var(--success)':'var(--danger)'}">HTTP ${result.httpStatus||0}</span></div><pre class="json-viewer" style="max-height:400px;">${highlightJson(result)}</pre>`;
+    box.innerHTML = `<div class="replay-header" style="display:flex;justify-content:space-between;align-items:center;"><span>📊 回放结果</span><span style="font-size:12px;color:${result.success?'var(--success)':'var(--danger)'}">HTTP ${result.httpStatus||0}</span></div><pre class="result-viewer" style="max-height:400px;">${highlightJson(result)}</pre>`;
     showToast(result.success ? '✅ 回放成功' : '❌ 回放失败', result.success ? 'success' : 'error');
   } catch (err) { box.innerHTML = `<div class="replay-header" style="color:var(--danger);">❌ 回放出错</div><div class="json-viewer">${err.message}</div>`; showToast('回放出错: '+err.message, 'error'); }
   finally { btn.disabled = false; btn.innerHTML = '▶️ 回放此请求'; }
